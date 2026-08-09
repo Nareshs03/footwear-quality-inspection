@@ -23,6 +23,23 @@ create table public.profiles (
 
 alter table public.profiles enable row level security;
 
+-- Security definer functions for RLS to prevent infinite recursion
+create or replace function public.is_admin()
+returns boolean as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'admin'
+  );
+$$ language sql security definer;
+
+create or replace function public.is_qc_or_admin()
+returns boolean as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role in ('admin', 'qc_inspector')
+  );
+$$ language sql security definer;
+
 create policy "Users can view own profile"
   on public.profiles for select
   using (auth.uid() = id);
@@ -33,21 +50,11 @@ create policy "Users can update own profile"
 
 create policy "Admins can view all profiles"
   on public.profiles for select
-  using (
-    exists (
-      select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
-    )
-  );
+  using ( public.is_admin() );
 
 create policy "Admins can update all profiles"
   on public.profiles for update
-  using (
-    exists (
-      select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
-    )
-  );
+  using ( public.is_admin() );
 
 -- Auto-create profile on signup
 create or replace function public.handle_new_user()
@@ -91,12 +98,7 @@ create policy "All authenticated users can view shoe models"
 
 create policy "Admins can manage shoe models"
   on public.shoe_models for all
-  using (
-    exists (
-      select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
-    )
-  );
+  using ( public.is_admin() );
 
 -- Insert sample shoe models
 insert into public.shoe_models (name, brand, category, description, tolerance_mm)
@@ -141,21 +143,11 @@ create policy "Workers can update own pending scans"
 
 create policy "Admins and QC can view all scans"
   on public.scans for select
-  using (
-    exists (
-      select 1 from public.profiles
-      where id = auth.uid() and role in ('admin', 'qc_inspector')
-    )
-  );
+  using ( public.is_qc_or_admin() );
 
 create policy "Admins can update any scan"
   on public.scans for update
-  using (
-    exists (
-      select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
-    )
-  );
+  using ( public.is_admin() );
 
 -- Auto-update updated_at
 create or replace function public.update_updated_at()
@@ -193,12 +185,8 @@ create policy "Users can view scan images they have access to"
   using (
     exists (
       select 1 from public.scans s
-      where s.id = scan_id and (
-        s.worker_id = auth.uid() or
-        exists (
-          select 1 from public.profiles p
-          where p.id = auth.uid() and p.role in ('admin', 'qc_inspector')
-        )
+      where s.id = scan_images.scan_id and (
+        s.worker_id = auth.uid() or public.is_qc_or_admin()
       )
     )
   );
@@ -208,7 +196,7 @@ create policy "Workers can insert images for their scans"
   with check (
     exists (
       select 1 from public.scans s
-      where s.id = scan_id and s.worker_id = auth.uid()
+      where s.id = scan_images.scan_id and s.worker_id = auth.uid()
     )
   );
 
@@ -237,12 +225,8 @@ create policy "Users can view measurements for accessible scans"
   using (
     exists (
       select 1 from public.scans s
-      where s.id = scan_id and (
-        s.worker_id = auth.uid() or
-        exists (
-          select 1 from public.profiles p
-          where p.id = auth.uid() and p.role in ('admin', 'qc_inspector')
-        )
+      where s.id = measurements.scan_id and (
+        s.worker_id = auth.uid() or public.is_qc_or_admin()
       )
     )
   );
@@ -268,19 +252,14 @@ alter table public.qc_reports enable row level security;
 
 create policy "QC inspectors and admins can manage reports"
   on public.qc_reports for all
-  using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid() and p.role in ('admin', 'qc_inspector')
-    )
-  );
+  using ( public.is_qc_or_admin() );
 
 create policy "Workers can view QC reports for their scans"
   on public.qc_reports for select
   using (
     exists (
       select 1 from public.scans s
-      where s.id = scan_id and s.worker_id = auth.uid()
+      where s.id = qc_reports.scan_id and s.worker_id = auth.uid()
     )
   );
 
