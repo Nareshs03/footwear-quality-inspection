@@ -10,6 +10,7 @@ import { processImage } from "@/lib/cv/process";
 import { getLocalCalibration, loadCalibration } from "@/lib/calibration";
 import { useScanStore } from "@/store/scan";
 import type { ScanResult } from "@/lib/cv/types";
+import { createClient } from "@/lib/supabase/client";
 
 const STATION_ID    = "station-1";
 const FALLBACK_PXMM = 2.4;
@@ -22,8 +23,22 @@ export default function ScanPage() {
   const [processing,    setProcessing]    = useState(false);
   const [errMsg,        setErrMsg]        = useState<string | null>(null);
   const [isCalibrated,  setIsCalibrated]  = useState<boolean | null>(null);
+  
+  const [setupComplete, setSetupComplete] = useState(false);
+  const [models, setModels] = useState<{id: string, name: string, tolerance_mm: number}[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string>("");
+
   const calibLoadedRef = useRef(false);
   const pxPerMmRef     = useRef<number>(FALLBACK_PXMM);
+
+  useEffect(() => {
+    async function fetchModels() {
+      const sb = createClient();
+      const { data } = await sb.from("shoe_models").select("id, name, tolerance_mm").order("name");
+      if (data) setModels(data);
+    }
+    fetchModels();
+  }, []);
 
   const loadCal = useCallback(async () => {
     if (calibLoadedRef.current) return;
@@ -52,7 +67,9 @@ export default function ScanPage() {
       return;
     }
 
-    const outcome = await processImage(frame, pxPerMmRef.current, video);
+    const { config } = useScanStore.getState();
+    const toleranceMm = config?.toleranceMm ?? 2.0;
+    const outcome = await processImage(frame, pxPerMmRef.current, video, toleranceMm);
 
     if (!outcome.ok) {
       setErrMsg(outcome.message);
@@ -61,7 +78,6 @@ export default function ScanPage() {
     }
 
     const r: ScanResult = outcome.result;
-    setConfig({ batchId: `BATCH-${Date.now()}` });
     setCaptured({
       blob:             new Blob(),
       dataUrl:          r.annotatedDataUrl,
@@ -88,6 +104,53 @@ export default function ScanPage() {
       className="fixed inset-0 z-50"
       style={{ background: "#000", height: "100dvh" }}
     >
+      {/* ── Setup Overlay ─────────────────────────────────────────────────── */}
+      {!setupComplete && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(0,0,0,0.9)" }}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl pointer-events-auto">
+            <h2 className="text-xl font-bold text-white mb-6">Scan Setup</h2>
+            <div className="space-y-4 mb-8">
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-2">Select Shoe Model</label>
+                <select
+                  value={selectedModelId}
+                  onChange={(e) => setSelectedModelId(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                >
+                  <option value="">-- Choose a model --</option>
+                  {models.map(m => (
+                    <option key={m.id} value={m.id}>{m.name} (Tol: {m.tolerance_mm}mm)</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const model = models.find(m => m.id === selectedModelId);
+                if (model) {
+                  setConfig({ 
+                    batchId: `BATCH-${Date.now()}`,
+                    shoeModelId: model.id,
+                    toleranceMm: model.tolerance_mm
+                  });
+                  setSetupComplete(true);
+                }
+              }}
+              disabled={!selectedModelId}
+              className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-xl p-3.5 font-bold transition-colors"
+            >
+              Start Inspection
+            </button>
+            <button
+              onClick={() => router.back()}
+              className="w-full mt-3 text-zinc-400 hover:text-white p-2 text-sm font-medium transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Full-screen video ─────────────────────────────────────────────── */}
       <video
         ref={videoRef}

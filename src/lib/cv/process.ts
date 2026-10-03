@@ -33,6 +33,7 @@ export async function processImage(
   fullFrame: ImageData,
   pxPerMm:   number,
   _videoEl:  HTMLVideoElement | null,
+  toleranceMm: number
 ): Promise<ProcessOutcome> {
   const fw = fullFrame.width;
   const fh = fullFrame.height;
@@ -105,12 +106,12 @@ export async function processImage(
   }
 
   // ── 5. Annotate ──────────────────────────────────────────────────────────
-  const comparison = compareHeels(leftM, rightM, "");
+  const comparison = compareHeels(leftM, rightM, "", toleranceMm);
 
   // Reuse fullCanvas (already has full-res pixels)
   const annotCtx = fullCanvas.getContext("2d")!;
   annotCtx.putImageData(fullFrame, 0, 0);
-  drawResultOverlay(fullCanvas, null, fullDetection, leftM, rightM, comparison, true);
+  drawResultOverlay(fullCanvas, null, fullDetection, leftM, rightM, comparison, toleranceMm, true);
 
   const annotatedDataUrl = fullCanvas.toDataURL("image/jpeg", 0.85);
 

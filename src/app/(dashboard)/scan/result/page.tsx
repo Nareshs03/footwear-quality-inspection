@@ -11,7 +11,7 @@ export default function ResultPage() {
   const router = useRouter();
   const { captured, config, reset } = useScanStore();
   const [saving, setSaving] = useState(false);
-  const [saved,  setSaved]  = useState(false);
+  const [saved, setSaved] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,41 +31,86 @@ export default function ResultPage() {
       const sb = createClient();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const db = sb as any;
-      const { data: { user } } = await sb.auth.getUser();
+      const { data: { user }, error: userErr } = await sb.auth.getUser();
+      console.log("SAVE: AUTH", user?.id);
       if (!user) throw new Error("Not authenticated");
 
-      const batchId     = config?.batchId ?? `BATCH-${Date.now()}`;
-      const scanId      = `SCAN-${Date.now()}`;
-      const status      = captured.passed ? "passed" : "rejected";
-      const blob        = await (await fetch(captured.annotatedDataUrl)).blob();
+      const batchId = config?.batchId ?? `BATCH-${Date.now()}`;
+      const shoeModelId = (config as any)?.shoeModelId;
+      if (!shoeModelId) throw new Error("No shoe model selected in setup");
+      const toleranceMm = (config as any)?.toleranceMm ?? 2.0;
+
+      const scanId = `SCAN-${Date.now()}`;
+      const status = "pending";
+      const blob = await (await fetch(captured.annotatedDataUrl)).blob();
       const storagePath = `scans/${user.id}/${scanId}.jpg`;
 
-      const { error: uploadErr } = await sb.storage
+      console.log("SAVE: STORAGE START");
+      const { data: uploadData, error: uploadErr } = await sb.storage
         .from("scan-images")
-        .upload(storagePath, blob, { contentType: "image/jpeg", upsert: true });
+        .upload(storagePath, blob, { contentType: "image/jpeg" });
+      console.log("SAVE: STORAGE RESULT", uploadErr);
       if (uploadErr) throw uploadErr;
 
       const { data: urlData } = sb.storage.from("scan-images").getPublicUrl(storagePath);
 
+      const scanPayload = {
+        scan_id: scanId,
+        worker_id: user.id,
+        shoe_model_id: shoeModelId,
+        batch_id: batchId,
+        size: "N/A",
+        status: status,
+        notes: null,
+      };
+      console.log("SAVE: SCANS START");
       const { data: scanRow, error: scanErr } = await db
         .from("scans")
-        .insert({
-          scan_id: scanId, worker_id: user.id, batch_id: batchId, size: "N/A", status,
-          left_height_mm: captured.leftHeightMm, right_height_mm: captured.rightHeightMm,
-          left_width_mm: null, right_width_mm: null, height_diff_mm: captured.heightDiffMm,
-          passed: captured.passed, rejection_reason: captured.rejectionReason, notes: null,
-        })
+        .insert(scanPayload)
         .select().single();
+      console.log("SAVE: SCANS RESULT", scanErr);
       if (scanErr) throw scanErr;
 
-      await db.from("scan_images").insert({
-        scan_id: scanRow.id, side: "pair",
-        storage_path: storagePath, public_url: urlData?.publicUrl ?? null,
-      });
+      const measPayload = {
+        scan_id: scanRow.id,
+        heel_height_mm: null,
+        processing_metadata: {
+          leftHeelHeightMm: captured.leftHeightMm,
+          rightHeelHeightMm: captured.rightHeightMm,
+          heightDiffMm: captured.heightDiffMm,
+          autoPassed: captured.passed,
+          autoRejectionReason: captured.rejectionReason,
+          toleranceMm: toleranceMm
+        }
+      };
+      console.log("SAVE: MEASUREMENTS START");
+      const { error: measErr, data: measurementRow } = await db.from("measurements").insert(measPayload).select().single();
+      console.log("SAVE: MEASUREMENTS RESULT", measErr);
+      if (measErr) throw measErr;
+
+      const imagePayload = {
+        scan_id: scanRow.id,
+        angle: "back",
+        storage_path: storagePath,
+        public_url: urlData?.publicUrl ?? null,
+      };
+      console.log("SAVE: SCAN_IMAGES START");
+      const { error: imageErr, data: imageRow } = await db.from("scan_images").insert(imagePayload).select().single();
+      console.log("SAVE: SCAN_IMAGES RESULT", imageErr);
+      if (imageErr) throw imageErr;
 
       setSaved(true);
-    } catch (e: unknown) {
-      setSaveErr(e instanceof Error ? e.message : "Save failed");
+    } catch (e: any) {
+      console.error("SAVE ERROR:", e);
+
+      const errorMessage =
+        e && typeof e === "object" && "message" in e
+          ? String((e as { message: unknown }).message)
+          : e instanceof Error
+            ? e.message
+            : JSON.stringify(e);
+
+      setSaveErr(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -73,11 +118,11 @@ export default function ResultPage() {
 
   if (!captured) return null;
 
-  const passed       = captured.passed;
-  const accent       = passed ? "#22c55e" : "#ef4444";
-  const accentDim    = passed ? "rgba(34,197,94,0.12)"  : "rgba(239,68,68,0.12)";
-  const accentBorder = passed ? "rgba(34,197,94,0.25)"  : "rgba(239,68,68,0.25)";
-  const batchLabel   = config?.batchId ?? "";
+  const passed = captured.passed;
+  const accent = passed ? "#22c55e" : "#ef4444";
+  const accentDim = passed ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)";
+  const accentBorder = passed ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)";
+  const batchLabel = config?.batchId ?? "";
 
   return (
     <div className="min-h-dvh flex flex-col" style={{ background: "#080810", color: "#fff" }}>
@@ -116,7 +161,7 @@ export default function ResultPage() {
       >
         {passed
           ? <CheckCircle2 className="w-11 h-11 flex-shrink-0" style={{ color: accent }} />
-          : <XCircle      className="w-11 h-11 flex-shrink-0" style={{ color: accent }} />
+          : <XCircle className="w-11 h-11 flex-shrink-0" style={{ color: accent }} />
         }
         <div className="min-w-0">
           <p
@@ -166,9 +211,9 @@ export default function ResultPage() {
         </p>
         <div className="grid grid-cols-3 divide-x" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.06)" }}>
           {[
-            { label: "Left Heel",  value: captured.leftHeightMm,  unit: "mm", sub: "Left shoe",    color: "#fff"  },
-            { label: "Right Heel", value: captured.rightHeightMm, unit: "mm", sub: "Right shoe",   color: "#fff"  },
-            { label: "Difference", value: captured.heightDiffMm,  unit: "mm", sub: "Tolerance 2mm", color: accent },
+            { label: "Left Heel", value: captured.leftHeightMm, unit: "mm", sub: "Left shoe", color: "#fff" },
+            { label: "Right Heel", value: captured.rightHeightMm, unit: "mm", sub: "Right shoe", color: "#fff" },
+            { label: "Difference", value: captured.heightDiffMm, unit: "mm", sub: "Tolerance 2mm", color: accent },
           ].map(({ label, value, unit, sub, color }) => (
             <div key={label} className="flex flex-col items-center py-4 px-2 gap-0.5">
               <p className="text-xs font-medium" style={{ color: "#555" }}>{label}</p>

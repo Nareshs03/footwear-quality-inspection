@@ -2,7 +2,6 @@
 // Called once after measurement — not in a rAF loop.
 
 import type { BBox, HeelMeasurement, ScanResult, ShoeDetectionResult } from "./types";
-import { TOLERANCE_MM } from "./compare";
 
 const C = { cyan:"#06b6d4", green:"#22c55e", red:"#ef4444", yellow:"#f59e0b", white:"#ffffff" };
 
@@ -92,6 +91,7 @@ export function drawResultOverlay(
   left:      HeelMeasurement,
   right:     HeelMeasurement,
   result:    ScanResult,
+  toleranceMm: number,
   skipDraw = false,
 ): void {
   if (!skipDraw && image) {
@@ -126,7 +126,7 @@ export function drawResultOverlay(
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   const label = result.passed
     ? `✓ PASS  L${result.leftMm}mm  R${result.rightMm}mm  Δ${result.diffMm}mm`
-    : `✗ FAIL  L${result.leftMm}mm  R${result.rightMm}mm  Δ${result.diffMm}mm > ${TOLERANCE_MM}mm`;
+    : `✗ FAIL  L${result.leftMm}mm  R${result.rightMm}mm  Δ${result.diffMm}mm > ${toleranceMm}mm`;
   ctx.fillText(label, w/2, bh/2);
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 }

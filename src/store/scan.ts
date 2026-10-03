@@ -2,6 +2,8 @@ import { create } from "zustand";
 
 export interface ScanConfig {
   batchId: string;
+  shoeModelId: string;
+  toleranceMm: number;
 }
 
 export interface CaptureResult {
