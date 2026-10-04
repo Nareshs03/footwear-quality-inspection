@@ -240,7 +240,7 @@ export function DashboardClient({ recentScans, stats, profile }: Props) {
         ) : (
           <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
             {recentScans.map((scan, i) => {
-              const meta = scan.measurements?.[0]?.processing_metadata || {};
+              const meta = scan.measurements?.processing_metadata || {};
               const passed = meta.autoPassed;
               const accentColor = passed === true ? "#22c55e" : passed === false ? "#ef4444" : "#f59e0b";
               return (

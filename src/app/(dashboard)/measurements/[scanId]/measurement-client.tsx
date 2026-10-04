@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function ScanDetailClient({ scan, image }: Props) {
-  const meta = scan.measurements?.[0]?.processing_metadata || {};
+  const meta = scan.measurements?.processing_metadata || {};
   const passed = meta.autoPassed;
   const accentColor = passed === true ? "#22c55e" : passed === false ? "#ef4444" : "#f59e0b";
   const statusLabel = passed === true ? "PASSED" : passed === false ? "REJECTED" : "PENDING";
@@ -86,6 +86,30 @@ export function ScanDetailClient({ scan, image }: Props) {
         </div>
       </motion.div>
 
+      {/* Annotated image */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="rounded-2xl overflow-hidden"
+        style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" }}
+      >
+        <div className="px-5 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#555" }}>Captured Image</p>
+        </div>
+        {image?.public_url ? (
+          <img
+            src={image.public_url}
+            alt="Shoe pair with measurement annotations"
+            className="w-full object-cover"
+          />
+        ) : (
+          <div className="p-8 flex items-center justify-center text-center">
+            <p className="text-sm text-sv-gray-500">No inspection image available</p>
+          </div>
+        )}
+      </motion.div>
+
       {/* Measurements table */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -113,25 +137,7 @@ export function ScanDetailClient({ scan, image }: Props) {
         </div>
       </motion.div>
 
-      {/* Annotated image */}
-      {image?.public_url && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="rounded-2xl overflow-hidden"
-          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
-        >
-          <div className="px-5 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(255,255,255,0.02)" }}>
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#555" }}>Captured Image</p>
-          </div>
-          <img
-            src={image.public_url}
-            alt="Shoe pair with measurement annotations"
-            className="w-full object-cover"
-          />
-        </motion.div>
-      )}
+
 
       {/* Meta */}
       <motion.div

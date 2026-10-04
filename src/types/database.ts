@@ -56,13 +56,14 @@ export interface Scan {
       heightDiffMm?: number;
       toleranceMm?: number;
     } | null;
-  }[];
+  } | null;
+  scan_images?: ScanImage[];
 }
 
 export interface ScanImage {
   id: string;
   scan_id: string;
-  side: ShoeSide;
+  angle: string;
   storage_path: string;
   public_url: string | null;
   created_at: string;

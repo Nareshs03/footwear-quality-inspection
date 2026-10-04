@@ -18,17 +18,26 @@ export default async function ScanDetailPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 
-  const [scanResult, imageResult] = await Promise.all([
-    db.from("scans").select("*, worker:profiles(full_name, email), measurements(processing_metadata)").eq("id", scanId).single(),
-    db.from("scan_images").select("*").eq("scan_id", scanId).eq("side", "pair").maybeSingle(),
-  ]);
+  const scanResult = await db
+    .from("scans")
+    .select("*, worker:profiles(full_name, email), measurements(processing_metadata), scan_images(public_url, storage_path, angle)")
+    .eq("id", scanId)
+    .single();
 
   if (scanResult.error || !scanResult.data) notFound();
 
+  const scan = scanResult.data;
+  let image = scan.scan_images?.[0] || null;
+
+  if (image && !image.public_url && image.storage_path) {
+    const { data: publicUrlData } = supabase.storage.from("scan-images").getPublicUrl(image.storage_path);
+    image = { ...image, public_url: publicUrlData.publicUrl };
+  }
+
   return (
     <ScanDetailClient
-      scan={scanResult.data}
-      image={imageResult.data || null}
+      scan={scan}
+      image={image}
     />
   );
 }

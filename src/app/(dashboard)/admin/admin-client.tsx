@@ -135,7 +135,7 @@ export function AdminClient({ scans, users, stats }: Props) {
         s.batch_id.toLowerCase().includes(q) ||
         s.worker?.full_name?.toLowerCase().includes(q) ||
         s.worker?.email.toLowerCase().includes(q);
-      const ap = s.measurements?.[0]?.processing_metadata?.autoPassed;
+      const ap = s.measurements?.processing_metadata?.autoPassed;
       const matchStatus =
         scanStatus === "all" ||
         (scanStatus === "passed" && ap === true) ||
@@ -192,7 +192,7 @@ export function AdminClient({ scans, users, stats }: Props) {
           onClick={() =>
             exportCSV(
               filteredScans.map((s) => {
-                const meta = s.measurements?.[0]?.processing_metadata || {};
+                const meta = s.measurements?.processing_metadata || {};
                 return {
                   scan_id: s.scan_id,
                   batch_id: s.batch_id,
@@ -327,7 +327,7 @@ export function AdminClient({ scans, users, stats }: Props) {
                       </tr>
                     ) : (
                       filteredScans.map((scan) => {
-                        const meta = scan.measurements?.[0]?.processing_metadata || {};
+                        const meta = scan.measurements?.processing_metadata || {};
                         const isPassed = meta.autoPassed === true;
                         const isRejected = meta.autoPassed === false;
                         const statusColor = isPassed ? "#22c55e" : isRejected ? "#ef4444" : "#f59e0b";

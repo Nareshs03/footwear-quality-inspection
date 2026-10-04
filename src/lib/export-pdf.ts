@@ -82,8 +82,8 @@ export function exportScansPdf(scans: ScanWithWorker[], filter: PdfFilter): void
   doc.text(`Filter: ${filterLabel(filter)}`, pageW - 14, 16, { align: "right" });
 
   // ── Summary bar ─────────────────────────────────────────────────────────
-  const passCount = filtered.filter(s => s.measurements?.[0]?.processing_metadata?.autoPassed === true).length;
-  const failCount = filtered.filter(s => s.measurements?.[0]?.processing_metadata?.autoPassed === false).length;
+  const passCount = filtered.filter(s => s.measurements?.processing_metadata?.autoPassed === true).length;
+  const failCount = filtered.filter(s => s.measurements?.processing_metadata?.autoPassed === false).length;
 
   doc.setFillColor(20, 20, 20);
   doc.rect(0, 22, pageW, 14, "F");
@@ -113,7 +113,7 @@ export function exportScansPdf(scans: ScanWithWorker[], filter: PdfFilter): void
     startY: 40,
     head: [["#", "Scan ID", "Date / Time", "L (mm)", "R (mm)", "Δ (mm)", "Result", "Worker"]],
     body: filtered.map((s, i) => {
-      const meta = s.measurements?.[0]?.processing_metadata || {};
+      const meta = s.measurements?.processing_metadata || {};
       return [
         String(i + 1),
         s.scan_id,

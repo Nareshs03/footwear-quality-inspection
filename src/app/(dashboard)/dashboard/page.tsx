@@ -29,10 +29,10 @@ export default async function DashboardPage() {
 
   const stats = {
     total: scans.length,
-    passed: scans.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === true).length,
-    rejected: scans.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === false).length,
+    passed: scans.filter((s) => s.measurements?.processing_metadata?.autoPassed === true).length,
+    rejected: scans.filter((s) => s.measurements?.processing_metadata?.autoPassed === false).length,
     pending: scans.filter((s) => {
-      const ap = s.measurements?.[0]?.processing_metadata?.autoPassed;
+      const ap = s.measurements?.processing_metadata?.autoPassed;
       return ap !== true && ap !== false;
     }).length,
   };

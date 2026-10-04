@@ -36,8 +36,8 @@ export default async function AdminPage() {
 
   const stats = {
     total: scans.length,
-    passed: scans.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === true).length,
-    rejected: scans.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === false).length,
+    passed: scans.filter((s) => s.measurements?.processing_metadata?.autoPassed === true).length,
+    rejected: scans.filter((s) => s.measurements?.processing_metadata?.autoPassed === false).length,
     workers: users.filter((u) => u.role === "worker").length,
   };
 

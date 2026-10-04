@@ -14,7 +14,7 @@ import type { PdfFilter } from "@/lib/export-pdf";
 type ScanWithWorker = Scan & { worker?: { full_name: string | null; email: string } | null };
 
 function ScanRow({ scan, i }: { scan: ScanWithWorker; i: number }) {
-  const meta = scan.measurements?.[0]?.processing_metadata || {};
+  const meta = scan.measurements?.processing_metadata || {};
   const passed = meta.autoPassed;
   const accentColor = passed === true ? "#22c55e" : passed === false ? "#ef4444" : "#f59e0b";
 
@@ -250,8 +250,8 @@ export function ScansClient({ scans }: { scans: ScanWithWorker[] }) {
     s.batch_id.toLowerCase().includes(search.toLowerCase())
   );
 
-  const passed   = filtered.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === true);
-  const rejected = filtered.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === false);
+  const passed   = filtered.filter((s) => s.measurements?.processing_metadata?.autoPassed === true);
+  const rejected = filtered.filter((s) => s.measurements?.processing_metadata?.autoPassed === false);
 
   return (
     <>
