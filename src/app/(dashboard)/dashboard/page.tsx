@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   const [scansResult, profileResult] = await Promise.all([
     supabase
       .from("scans")
-      .select("*")
+      .select("*, measurements(processing_metadata)")
       .eq("worker_id", user.id)
       .order("created_at", { ascending: false })
       .limit(10),
@@ -29,9 +29,12 @@ export default async function DashboardPage() {
 
   const stats = {
     total: scans.length,
-    passed: scans.filter((s) => s.passed === true).length,
-    rejected: scans.filter((s) => s.passed === false).length,
-    pending: scans.filter((s) => s.passed === null).length,
+    passed: scans.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === true).length,
+    rejected: scans.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === false).length,
+    pending: scans.filter((s) => {
+      const ap = s.measurements?.[0]?.processing_metadata?.autoPassed;
+      return ap !== true && ap !== false;
+    }).length,
   };
 
   return <DashboardClient recentScans={scans} stats={stats} profile={profile} />;

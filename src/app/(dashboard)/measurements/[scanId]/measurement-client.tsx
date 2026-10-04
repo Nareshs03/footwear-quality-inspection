@@ -12,16 +12,16 @@ interface Props {
 }
 
 export function ScanDetailClient({ scan, image }: Props) {
-  const passed = scan.passed;
+  const meta = scan.measurements?.[0]?.processing_metadata || {};
+  const passed = meta.autoPassed;
   const accentColor = passed === true ? "#22c55e" : passed === false ? "#ef4444" : "#f59e0b";
   const statusLabel = passed === true ? "PASSED" : passed === false ? "REJECTED" : "PENDING";
 
   const rows = [
-    { label: "Left Shoe Height", value: scan.left_height_mm != null ? `${scan.left_height_mm} mm` : "—", highlight: false },
-    { label: "Right Shoe Height", value: scan.right_height_mm != null ? `${scan.right_height_mm} mm` : "—", highlight: false },
-    { label: "Left Shoe Width", value: scan.left_width_mm != null ? `${scan.left_width_mm} mm` : "—", highlight: false },
-    { label: "Right Shoe Width", value: scan.right_width_mm != null ? `${scan.right_width_mm} mm` : "—", highlight: false },
-    { label: "Height Difference", value: scan.height_diff_mm != null ? `${scan.height_diff_mm} mm` : "—", highlight: true },
+    { label: "Left Shoe Height", value: meta.leftHeelHeightMm != null ? `${meta.leftHeelHeightMm} mm` : "—", highlight: false },
+    { label: "Right Shoe Height", value: meta.rightHeelHeightMm != null ? `${meta.rightHeelHeightMm} mm` : "—", highlight: false },
+    { label: "Height Difference", value: meta.heightDiffMm != null ? `${meta.heightDiffMm} mm` : "—", highlight: true },
+    { label: "Tolerance", value: meta.toleranceMm != null ? `${meta.toleranceMm} mm` : "—", highlight: false },
   ];
 
   return (
@@ -80,8 +80,8 @@ export function ScanDetailClient({ scan, image }: Props) {
           <p className="font-bold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
             {passed === true ? "Height match within tolerance" : "Height mismatch detected"}
           </p>
-          {scan.rejection_reason && (
-            <p className="text-sm mt-0.5" style={{ color: "#888" }}>{scan.rejection_reason}</p>
+          {meta.autoRejectionReason && (
+            <p className="text-sm mt-0.5" style={{ color: "#888" }}>{meta.autoRejectionReason}</p>
           )}
         </div>
       </motion.div>

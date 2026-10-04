@@ -14,7 +14,8 @@ import type { PdfFilter } from "@/lib/export-pdf";
 type ScanWithWorker = Scan & { worker?: { full_name: string | null; email: string } | null };
 
 function ScanRow({ scan, i }: { scan: ScanWithWorker; i: number }) {
-  const passed = scan.passed;
+  const meta = scan.measurements?.[0]?.processing_metadata || {};
+  const passed = meta.autoPassed;
   const accentColor = passed === true ? "#22c55e" : passed === false ? "#ef4444" : "#f59e0b";
 
   return (
@@ -45,25 +46,25 @@ function ScanRow({ scan, i }: { scan: ScanWithWorker; i: number }) {
                   <span className="text-xs font-mono" style={{ color: "#555" }}>{scan.scan_id}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap mt-0.5 text-xs" style={{ color: "#555" }}>
-                  {scan.left_height_mm != null && (
-                    <span>L: {scan.left_height_mm}mm</span>
+                  {meta.leftHeelHeightMm != null && (
+                    <span>L: {meta.leftHeelHeightMm}mm</span>
                   )}
-                  {scan.right_height_mm != null && (
+                  {meta.rightHeelHeightMm != null && (
                     <>
                       <span>·</span>
-                      <span>R: {scan.right_height_mm}mm</span>
+                      <span>R: {meta.rightHeelHeightMm}mm</span>
                     </>
                   )}
-                  {scan.height_diff_mm != null && (
+                  {meta.heightDiffMm != null && (
                     <>
                       <span>·</span>
-                      <span style={{ color: accentColor }}>Δ {scan.height_diff_mm}mm</span>
+                      <span style={{ color: accentColor }}>Δ {meta.heightDiffMm}mm</span>
                     </>
                   )}
-                  {scan.rejection_reason && (
+                  {meta.autoRejectionReason && (
                     <>
                       <span>·</span>
-                      <span className="truncate max-w-[180px]" style={{ color: "#ef4444" }}>{scan.rejection_reason}</span>
+                      <span className="truncate max-w-[180px]" style={{ color: "#ef4444" }}>{meta.autoRejectionReason}</span>
                     </>
                   )}
                 </div>
@@ -249,8 +250,8 @@ export function ScansClient({ scans }: { scans: ScanWithWorker[] }) {
     s.batch_id.toLowerCase().includes(search.toLowerCase())
   );
 
-  const passed   = filtered.filter((s) => s.passed === true);
-  const rejected = filtered.filter((s) => s.passed === false);
+  const passed   = filtered.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === true);
+  const rejected = filtered.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === false);
 
   return (
     <>

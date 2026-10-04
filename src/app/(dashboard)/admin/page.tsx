@@ -20,7 +20,7 @@ export default async function AdminPage() {
   const [scansResult, usersResult] = await Promise.all([
     supabase
       .from("scans")
-      .select("*, worker:profiles(full_name, email)")
+      .select("*, worker:profiles(full_name, email), measurements(processing_metadata)")
       .order("created_at", { ascending: false })
       .limit(200),
     supabase
@@ -36,8 +36,8 @@ export default async function AdminPage() {
 
   const stats = {
     total: scans.length,
-    passed: scans.filter((s) => s.passed === true).length,
-    rejected: scans.filter((s) => s.passed === false).length,
+    passed: scans.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === true).length,
+    rejected: scans.filter((s) => s.measurements?.[0]?.processing_metadata?.autoPassed === false).length,
     workers: users.filter((u) => u.role === "worker").length,
   };
 

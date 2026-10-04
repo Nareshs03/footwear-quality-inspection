@@ -135,11 +135,12 @@ export function AdminClient({ scans, users, stats }: Props) {
         s.batch_id.toLowerCase().includes(q) ||
         s.worker?.full_name?.toLowerCase().includes(q) ||
         s.worker?.email.toLowerCase().includes(q);
+      const ap = s.measurements?.[0]?.processing_metadata?.autoPassed;
       const matchStatus =
         scanStatus === "all" ||
-        (scanStatus === "passed" && s.passed === true) ||
-        (scanStatus === "rejected" && s.passed === false) ||
-        (scanStatus === "pending" && s.passed === null);
+        (scanStatus === "passed" && ap === true) ||
+        (scanStatus === "rejected" && ap === false) ||
+        (scanStatus === "pending" && ap !== true && ap !== false);
       return matchSearch && matchStatus;
     })
     .sort((a, b) => {
@@ -190,17 +191,20 @@ export function AdminClient({ scans, users, stats }: Props) {
           className="gap-1.5"
           onClick={() =>
             exportCSV(
-              filteredScans.map((s) => ({
-                scan_id: s.scan_id,
-                batch_id: s.batch_id,
-                left_height_mm: s.left_height_mm ?? "",
-                right_height_mm: s.right_height_mm ?? "",
-                height_diff_mm: s.height_diff_mm ?? "",
-                passed: s.passed === true ? "passed" : s.passed === false ? "rejected" : "pending",
-                rejection_reason: s.rejection_reason ?? "",
-                worker: s.worker?.full_name || s.worker?.email,
-                created_at: s.created_at,
-              })),
+              filteredScans.map((s) => {
+                const meta = s.measurements?.[0]?.processing_metadata || {};
+                return {
+                  scan_id: s.scan_id,
+                  batch_id: s.batch_id,
+                  left_height_mm: meta.leftHeelHeightMm ?? "",
+                  right_height_mm: meta.rightHeelHeightMm ?? "",
+                  height_diff_mm: meta.heightDiffMm ?? "",
+                  passed: meta.autoPassed === true ? "passed" : meta.autoPassed === false ? "rejected" : "pending",
+                  rejection_reason: meta.autoRejectionReason ?? "",
+                  worker: s.worker?.full_name || s.worker?.email,
+                  created_at: s.created_at,
+                };
+              }),
               `stridevision-scans-${new Date().toISOString().slice(0, 10)}.csv`
             )
           }
@@ -323,8 +327,9 @@ export function AdminClient({ scans, users, stats }: Props) {
                       </tr>
                     ) : (
                       filteredScans.map((scan) => {
-                        const isPassed = scan.passed === true;
-                        const isRejected = scan.passed === false;
+                        const meta = scan.measurements?.[0]?.processing_metadata || {};
+                        const isPassed = meta.autoPassed === true;
+                        const isRejected = meta.autoPassed === false;
                         const statusColor = isPassed ? "#22c55e" : isRejected ? "#ef4444" : "#f59e0b";
                         const statusLabel = isPassed ? "PASSED" : isRejected ? "REJECTED" : "PENDING";
                         return (
@@ -349,20 +354,20 @@ export function AdminClient({ scans, users, stats }: Props) {
                             </td>
                             <td className="px-4 py-3">
                               <span className="text-xs text-sv-gray-300">
-                                {scan.left_height_mm != null ? `${scan.left_height_mm}mm` : "—"}
+                                {meta.leftHeelHeightMm != null ? `${meta.leftHeelHeightMm}mm` : "—"}
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               <span className="text-xs text-sv-gray-300">
-                                {scan.right_height_mm != null ? `${scan.right_height_mm}mm` : "—"}
+                                {meta.rightHeelHeightMm != null ? `${meta.rightHeelHeightMm}mm` : "—"}
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               <span
                                 className="text-xs font-medium"
-                                style={{ color: scan.height_diff_mm != null ? statusColor : "#555" }}
+                                style={{ color: meta.heightDiffMm != null ? statusColor : "#555" }}
                               >
-                                {scan.height_diff_mm != null ? `Δ ${scan.height_diff_mm}mm` : "—"}
+                                {meta.heightDiffMm != null ? `Δ ${meta.heightDiffMm}mm` : "—"}
                               </span>
                             </td>
                             <td className="px-4 py-3">

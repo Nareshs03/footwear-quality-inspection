@@ -19,7 +19,7 @@ export default async function ScansPage() {
 
   const baseQuery = supabase
     .from("scans")
-    .select("*, worker:profiles(full_name, email)")
+    .select("*, worker:profiles(full_name, email), measurements(processing_metadata)")
     .order("created_at", { ascending: false })
     .limit(100);
 

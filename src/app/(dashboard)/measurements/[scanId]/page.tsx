@@ -19,7 +19,7 @@ export default async function ScanDetailPage({
   const db = supabase as any;
 
   const [scanResult, imageResult] = await Promise.all([
-    db.from("scans").select("*, worker:profiles(full_name, email)").eq("id", scanId).single(),
+    db.from("scans").select("*, worker:profiles(full_name, email), measurements(processing_metadata)").eq("id", scanId).single(),
     db.from("scan_images").select("*").eq("scan_id", scanId).eq("side", "pair").maybeSingle(),
   ]);
 

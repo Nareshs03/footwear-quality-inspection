@@ -240,7 +240,8 @@ export function DashboardClient({ recentScans, stats, profile }: Props) {
         ) : (
           <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
             {recentScans.map((scan, i) => {
-              const passed = scan.passed;
+              const meta = scan.measurements?.[0]?.processing_metadata || {};
+              const passed = meta.autoPassed;
               const accentColor = passed === true ? "#22c55e" : passed === false ? "#ef4444" : "#f59e0b";
               return (
                 <motion.div
@@ -264,10 +265,10 @@ export function DashboardClient({ recentScans, stats, profile }: Props) {
                         </div>
                         <div className="text-xs mt-0.5 truncate flex gap-2" style={{ color: "#555" }}>
                           <span>{scan.scan_id}</span>
-                          {scan.height_diff_mm != null && (
+                          {meta.heightDiffMm != null && (
                             <>
                               <span>·</span>
-                              <span style={{ color: accentColor }}>Δ {scan.height_diff_mm}mm</span>
+                              <span style={{ color: accentColor }}>Δ {meta.heightDiffMm}mm</span>
                             </>
                           )}
                           <span>·</span>

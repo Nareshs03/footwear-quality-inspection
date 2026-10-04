@@ -82,8 +82,8 @@ export function exportScansPdf(scans: ScanWithWorker[], filter: PdfFilter): void
   doc.text(`Filter: ${filterLabel(filter)}`, pageW - 14, 16, { align: "right" });
 
   // ── Summary bar ─────────────────────────────────────────────────────────
-  const passCount = filtered.filter(s => s.passed === true).length;
-  const failCount = filtered.filter(s => s.passed === false).length;
+  const passCount = filtered.filter(s => s.measurements?.[0]?.processing_metadata?.autoPassed === true).length;
+  const failCount = filtered.filter(s => s.measurements?.[0]?.processing_metadata?.autoPassed === false).length;
 
   doc.setFillColor(20, 20, 20);
   doc.rect(0, 22, pageW, 14, "F");
@@ -112,16 +112,19 @@ export function exportScansPdf(scans: ScanWithWorker[], filter: PdfFilter): void
   autoTable(doc, {
     startY: 40,
     head: [["#", "Scan ID", "Date / Time", "L (mm)", "R (mm)", "Δ (mm)", "Result", "Worker"]],
-    body: filtered.map((s, i) => [
-      String(i + 1),
-      s.scan_id,
-      fmtDate(s.created_at),
-      s.left_height_mm  != null ? String(s.left_height_mm)  : "—",
-      s.right_height_mm != null ? String(s.right_height_mm) : "—",
-      s.height_diff_mm  != null ? String(s.height_diff_mm)  : "—",
-      s.passed === true ? "PASS" : s.passed === false ? "FAIL" : "—",
-      s.worker?.full_name || s.worker?.email || "—",
-    ]),
+    body: filtered.map((s, i) => {
+      const meta = s.measurements?.[0]?.processing_metadata || {};
+      return [
+        String(i + 1),
+        s.scan_id,
+        fmtDate(s.created_at),
+        meta.leftHeelHeightMm  != null ? String(meta.leftHeelHeightMm)  : "—",
+        meta.rightHeelHeightMm != null ? String(meta.rightHeelHeightMm) : "—",
+        meta.heightDiffMm  != null ? String(meta.heightDiffMm)  : "—",
+        meta.autoPassed === true ? "PASS" : meta.autoPassed === false ? "FAIL" : "—",
+        s.worker?.full_name || s.worker?.email || "—",
+      ];
+    }),
     styles: {
       fontSize: 8,
       cellPadding: 3,

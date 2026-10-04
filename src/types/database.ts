@@ -43,17 +43,20 @@ export interface Scan {
   batch_id: string;
   size: string;
   status: ScanStatus;
-  left_height_mm: number | null;
-  right_height_mm: number | null;
-  left_width_mm: number | null;
-  right_width_mm: number | null;
-  height_diff_mm: number | null;
-  passed: boolean | null;
-  rejection_reason: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
   worker?: Profile;
+  measurements?: {
+    processing_metadata?: {
+      autoPassed?: boolean;
+      autoRejectionReason?: string;
+      leftHeelHeightMm?: number;
+      rightHeelHeightMm?: number;
+      heightDiffMm?: number;
+      toleranceMm?: number;
+    } | null;
+  }[];
 }
 
 export interface ScanImage {
