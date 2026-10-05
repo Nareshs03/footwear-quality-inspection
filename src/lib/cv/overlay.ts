@@ -1,7 +1,7 @@
 // Draws result annotations on a canvas over a captured image.
 // Called once after measurement — not in a rAF loop.
 
-import type { BBox, ShoeMeasurement, ScanResult, ShoeDetectionResult } from "./types";
+import type { BBox, HeelMeasurement, ScanResult, ShoeDetectionResult } from "./types";
 
 const C = { cyan:"#06b6d4", green:"#22c55e", red:"#ef4444", yellow:"#f59e0b", white:"#ffffff" };
 
@@ -33,28 +33,28 @@ function drawBbox(ctx: CanvasRenderingContext2D, bbox: BBox, color: string) {
 }
 
 // Draw annotation for one shoe.
-function drawShoeMeasurement(
+function drawHeelMeasurement(
   ctx:      CanvasRenderingContext2D,
-  m:        ShoeMeasurement,
+  m:        HeelMeasurement,
   shoeBbox: BBox,
   side:     "left"|"right",
   passed:   boolean,
 ) {
-  const mb  = m.measureBbox;
+  const cb  = m.coreBbox;
   const col = passed ? C.green : C.red;
   const fs  = Math.max(14, Math.round(shoeBbox.w * 0.08));
 
-  // Full shoe highlight
+  // Highlight exact measurement core slice
   ctx.fillStyle = `${C.cyan}22`;
-  ctx.fillRect(mb.x, mb.y, mb.w, mb.h);
-  drawBbox(ctx, mb, C.cyan);
+  ctx.fillRect(cb.x, cb.y, cb.w, cb.h);
+  drawBbox(ctx, cb, C.cyan);
 
-  // Top line and bottom line
-  hLine(ctx, m.topY,    shoeBbox.x, shoeBbox.x+shoeBbox.w, C.cyan);
-  hLine(ctx, m.bottomY, shoeBbox.x, shoeBbox.x+shoeBbox.w, C.green);
+  // Top line and bottom line relative to the heel width
+  hLine(ctx, m.topY,    m.heelBbox.x, m.heelBbox.x+m.heelBbox.w, C.cyan);
+  hLine(ctx, m.bottomY, m.heelBbox.x, m.heelBbox.x+m.heelBbox.w, C.green);
 
-  // Arrow drawn in the middle of the shoe bounding box
-  const ax = mb.x + mb.w / 2;
+  // Arrow drawn in the middle of the core measurement slice
+  const ax = cb.x + cb.w / 2;
   ctx.strokeStyle=C.yellow; ctx.lineWidth=2;
   ctx.shadowColor=C.yellow; ctx.shadowBlur=5;
   ctx.beginPath(); ctx.moveTo(ax, m.topY); ctx.lineTo(ax, m.bottomY); ctx.stroke();
@@ -76,13 +76,12 @@ function drawShoeMeasurement(
   pill(ctx, label, labelX, midY, "rgba(0,0,0,0.85)", col, fs);
 }
 
-// When skipDraw=true the caller has already written pixels; skip resize+drawImage.
 export function drawResultOverlay(
   canvas:    HTMLCanvasElement,
   image:     HTMLImageElement | HTMLVideoElement | HTMLCanvasElement | null,
   detection: ShoeDetectionResult,
-  left:      ShoeMeasurement,
-  right:     ShoeMeasurement,
+  left:      HeelMeasurement,
+  right:     HeelMeasurement,
   result:    ScanResult,
   toleranceMm: number,
   skipDraw = false,
@@ -105,8 +104,8 @@ export function drawResultOverlay(
   if (detection.left)  drawBbox(ctx, detection.left.bbox,  C.cyan);
   if (detection.right) drawBbox(ctx, detection.right.bbox, C.cyan);
 
-  drawShoeMeasurement(ctx, left,  detection.left!.bbox,  "left",  result.passed);
-  drawShoeMeasurement(ctx, right, detection.right!.bbox, "right", result.passed);
+  drawHeelMeasurement(ctx, left,  detection.left!.bbox,  "left",  result.passed);
+  drawHeelMeasurement(ctx, right, detection.right!.bbox, "right", result.passed);
 
   // Result banner at top
   const resultColor = result.passed ? C.green : C.red;

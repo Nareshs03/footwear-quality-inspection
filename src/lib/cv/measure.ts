@@ -1,4 +1,4 @@
-import type { BBox, ShoeMeasurement } from "./types";
+import type { BBox, HeelMeasurement } from "./types";
 
 const NOISE_SKIP = 2;
 
@@ -38,18 +38,6 @@ function otsu(gray: Uint8Array): number {
   return t;
 }
 
-function rowWidthProfile(gray: Uint8Array, bw: number, bh: number, darkT: number): Int32Array {
-  const profile = new Int32Array(bh);
-  for (let ry = 0; ry < bh; ry++) {
-    let count = 0;
-    for (let rx = 0; rx < bw; rx++) {
-      if (gray[ry * bw + rx] <= darkT) count++;
-    }
-    profile[ry] = count;
-  }
-  return profile;
-}
-
 function smooth(arr: Int32Array, radius: number): Float64Array {
   const out = new Float64Array(arr.length);
   for (let i = 0; i < arr.length; i++) {
@@ -63,37 +51,73 @@ function smooth(arr: Int32Array, radius: number): Float64Array {
   return out;
 }
 
-export function measureShoe(
-  frame:       ImageData,
-  measureBbox: BBox,
-  blobMaxY:    number,
-  pxPerMm:     number,
-): ShoeMeasurement | null {
-  const { x: bx, y: by, w: bw, h: bh } = measureBbox;
+export function measureHeelVertical(
+  frame:     ImageData,
+  heelBbox:  BBox,
+  blobMaxY:  number,
+  pxPerMm:   number,
+): HeelMeasurement | null {
+  const { x: bx, y: by, w: bw, h: bh } = heelBbox;
 
-  const gray  = regionGray(frame, measureBbox);
+  const gray  = regionGray(frame, heelBbox);
   const darkT = Math.min(otsu(gray), 160);
 
-  const scanBottomRow = Math.min(bh - 1 - NOISE_SKIP, blobMaxY - by);
+  // Define a central vertical core slice to avoid rounded sides
+  // We examine the middle 50% of the rear 40% region
+  const coreX = Math.floor(bw * 0.25);
+  const coreW = Math.floor(bw * 0.50);
 
+  // Build per-row fill profile for the CORE vertical slice ONLY
   const fillProfile = new Int32Array(bh);
   for (let ry = 0; ry < bh; ry++) {
     let count = 0;
-    for (let rx = 0; rx < bw; rx++) {
+    for (let rx = coreX; rx < coreX + coreW; rx++) {
       if (gray[ry * bw + rx] <= darkT) count++;
     }
     fillProfile[ry] = count;
   }
   const smoothedFill = smooth(fillProfile, 4);
 
+  // --- TOP Y ---
+  // Find highest reliable row belonging to the shoe structure
+  // Requires at least 15% fill of the core slice width (or min 3 pixels), 
+  // followed by 3 valid consecutive rows to ignore noise/laces.
+  const topThresh = Math.max(3, Math.round(coreW * 0.15));
+  let topRow = -1;
+  for (let ry = NOISE_SKIP; ry < bh - NOISE_SKIP; ry++) {
+    if (smoothedFill[ry] >= topThresh) {
+      let consecutive = 0;
+      for (let k = 1; k <= 4; k++) {
+        if (ry + k < bh && smoothedFill[ry + k] >= topThresh) consecutive++;
+      }
+      if (consecutive >= 3) {
+        topRow = ry;
+        break;
+      }
+    }
+  }
+
+  if (topRow < 0) {
+    for (let ry = NOISE_SKIP; ry < bh - NOISE_SKIP; ry++) {
+      if (fillProfile[ry] >= 2) { topRow = ry; break; }
+    }
+  }
+  if (topRow < 0) return null;
+  const topY = by + topRow;
+
+  // --- BOTTOM Y ---
+  const scanBottomRow = Math.min(bh - 1 - NOISE_SKIP, blobMaxY - by);
+  
+  // Median fill of the core slice within the middle 40% of the bbox
   const midStart = Math.floor(bh * 0.20);
   const midEnd   = Math.floor(bh * 0.60);
   const midFills: number[] = [];
   for (let ry = midStart; ry <= midEnd; ry++) midFills.push(smoothedFill[ry]);
   const shoeBodyFill = median(midFills.map(Math.round));
 
+  // Minimum threshold to count as outsole
   const soleThresh = Math.max(2, shoeBodyFill * 0.25);
-
+  
   let soleRow = -1;
   for (let ry = scanBottomRow; ry >= NOISE_SKIP + 3; ry--) {
     if (smoothedFill[ry] >= soleThresh) {
@@ -111,58 +135,19 @@ export function measureShoe(
     }
   }
   if (soleRow < 0) return null;
+  const bottomY = by + soleRow;
 
-  const medBottomY = by + soleRow;
-
-  const topY = computeTopY(gray, bw, bh, darkT, by, NOISE_SKIP);
-  if (topY === null) return null;
-
-  return buildResult(medBottomY, measureBbox, pxPerMm, topY);
-}
-
-function computeTopY(
-  gray: Uint8Array, bw: number, bh: number, darkT: number, by: number, noiseSkip: number,
-): number | null {
-  const profile  = rowWidthProfile(gray, bw, bh, darkT);
-  const smoothed = smooth(profile, 5);
-
-  const minWidth = Math.max(5, Math.round(bw * 0.03));
-  
-  let shoeTopRow = -1;
-  for (let ry = noiseSkip; ry < bh - noiseSkip; ry++) {
-    if (smoothed[ry] >= minWidth) {
-      let consecutive = 0;
-      for (let k = 1; k <= 4; k++) {
-        if (ry + k < bh && smoothed[ry + k] >= minWidth) consecutive++;
-      }
-      if (consecutive >= 3) {
-        shoeTopRow = ry;
-        break;
-      }
-    }
-  }
-
-  if (shoeTopRow < 0) {
-    for (let ry = noiseSkip; ry < bh - noiseSkip; ry++) {
-      if (profile[ry] >= 2) { shoeTopRow = ry; break; }
-    }
-  }
-
-  if (shoeTopRow < 0) return null;
-
-  return by + shoeTopRow;
-}
-
-function buildResult(
-  medBottomY: number, measureBbox: BBox, pxPerMm: number, topY: number,
-): ShoeMeasurement | null {
-  const heightPx = medBottomY - topY;
+  const heightPx = bottomY - topY;
   if (heightPx <= 0) return null;
+
+  const coreBbox: BBox = { x: bx + coreX, y: topY, w: coreW, h: heightPx };
+
   return {
     topY,
-    bottomY:  medBottomY,
+    bottomY,
     heightPx,
     heightMm: parseFloat((heightPx / pxPerMm).toFixed(1)),
-    measureBbox,
+    heelBbox,
+    coreBbox
   };
 }
