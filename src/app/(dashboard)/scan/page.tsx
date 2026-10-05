@@ -208,13 +208,32 @@ function UploadView({
         img.onerror = () => reject(new Error("Failed to load image."));
       });
 
+      const isPortrait = img.naturalHeight > img.naturalWidth;
+      // useCamera requests ideal: 1920, ideal: 1080
+      const targetW = isPortrait ? 1080 : 1920;
+      const targetH = isPortrait ? 1920 : 1080;
+      const targetRatio = targetW / targetH;
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+
+      let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+
+      if (imgRatio > targetRatio) {
+        sw = img.naturalHeight * targetRatio;
+        sx = (img.naturalWidth - sw) / 2;
+      } else if (imgRatio < targetRatio) {
+        sh = img.naturalWidth / targetRatio;
+        sy = (img.naturalHeight - sh) / 2;
+      }
+
+      console.info(`[upload] original: ${img.naturalWidth}x${img.naturalHeight}, target: ${targetW}x${targetH}, crop: ${Math.round(sw)}x${Math.round(sh)} at ${Math.round(sx)},${Math.round(sy)}`);
+
       const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = targetW;
+      canvas.height = targetH;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Could not initialize canvas context.");
       
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
       const toleranceMm = config?.toleranceMm ?? 2.0;
