@@ -18,12 +18,12 @@ export interface ShoeDetectionResult {
   splitX: number; // X boundary separating left shoe from right shoe (full-frame coords after scaling)
 }
 
-export interface HeelMeasurement {
-  topY:      number;  // topmost dark pixel in heel column
-  bottomY:   number;  // bottom of shoe bbox
+export interface ShoeMeasurement {
+  topY:      number;  
+  bottomY:   number;  
   heightPx:  number;
   heightMm:  number;
-  heelBbox:  BBox;
+  measureBbox:  BBox;
 }
 
 export interface ScanResult {

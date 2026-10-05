@@ -1,8 +1,8 @@
-import type { HeelMeasurement, ScanResult } from "./types";
+import type { ShoeMeasurement, ScanResult } from "./types";
 
-export function compareHeels(
-  left:  HeelMeasurement,
-  right: HeelMeasurement,
+export function compareShoes(
+  left:  ShoeMeasurement,
+  right: ShoeMeasurement,
   annotatedDataUrl: string,
   toleranceMm: number
 ): ScanResult {

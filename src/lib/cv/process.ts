@@ -3,9 +3,8 @@
 
 import type { BBox, ScanResult } from "./types";
 import { detectShoes } from "./detector";
-import { findHeelSide } from "./heel-finder";
-import { measureHeel } from "./measure";
-import { compareHeels } from "./compare";
+import { measureShoe } from "./measure";
+import { compareShoes } from "./compare";
 import { drawResultOverlay } from "./overlay";
 
 export type ProcessError =
@@ -82,31 +81,20 @@ export async function processImage(
     "| L bbox x:", leftDetection.bbox.x,  "w:", leftDetection.bbox.w,
     "| R bbox x:", rightDetection.bbox.x, "w:", rightDetection.bbox.w);
 
-  // ── 4. Find heel side + measure on full-res ──────────────────────────────
-  // Pass splitX so each shoe's heelBbox is clamped to its own side.
-  // This prevents the heelBbox of an inward-facing heel from crossing into
-  // the opposite shoe's pixel space.
-  const leftRegion  = findHeelSide(fullFrame, leftDetection.bbox,  splitX, "left");
-  const rightRegion = findHeelSide(fullFrame, rightDetection.bbox, splitX, "right");
-
-  console.info("[process] L heel side:", leftRegion.side,
-    "heelBbox x:", leftRegion.heelBbox.x, "w:", leftRegion.heelBbox.w,
-    "| R heel side:", rightRegion.side,
-    "heelBbox x:", rightRegion.heelBbox.x, "w:", rightRegion.heelBbox.w);
-
-  const leftM  = measureHeel(fullFrame, leftRegion.heelBbox,  leftDetection.blobMaxY,  pxPerMm);
-  const rightM = measureHeel(fullFrame, rightRegion.heelBbox, rightDetection.blobMaxY, pxPerMm);
+  // ── 4. Measure on full-res ───────────────────────────────────────────────
+  const leftM  = measureShoe(fullFrame, leftDetection.bbox,  leftDetection.blobMaxY,  pxPerMm);
+  const rightM = measureShoe(fullFrame, rightDetection.bbox, rightDetection.blobMaxY, pxPerMm);
 
   if (!leftM || !rightM) {
     return {
       ok: false,
       error: "MEASURE_FAILED",
-      message: "Could not measure heel height. Try repositioning so heel ends are clearly visible.",
+      message: "Could not measure shoe height. Try repositioning so shoes are clearly visible.",
     };
   }
 
   // ── 5. Annotate ──────────────────────────────────────────────────────────
-  const comparison = compareHeels(leftM, rightM, "", toleranceMm);
+  const comparison = compareShoes(leftM, rightM, "", toleranceMm);
 
   // Reuse fullCanvas (already has full-res pixels)
   const annotCtx = fullCanvas.getContext("2d")!;
